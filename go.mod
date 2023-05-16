@@ -1,4 +1,4 @@
-module github.com/nikola43/web3golanghelper
+module github.com/LucaWilliams4831/web3golanghelper
 
 go 1.18
 
