@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+	"database/sql"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -20,7 +21,7 @@ import (
 	pancakeFactory "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakeFactory"
 	pancakePair "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakePair"
 	"github.com/LucaWilliams4831/web3golanghelper/web3helper"
-	"github.com/LucaWilliams4831/web3golanghelper/database"
+	database "github.com/LucaWilliams4831/web3golanghelper/database"
 )
 
 type Reserve struct {
@@ -46,14 +47,14 @@ type Bot struct {
 
 
 func main() {
-
-	db, err := database.createDBConnection()
-    if err != nil {
-        log.Fatal(err)
-    }
+	// database.Connect()
+	 database.connect()
+    // if err != nil {
+    //     log.Fatal(err)
+    // }
     
-    defer db.Close()
-	database.createTable(db)
+    // defer db.Close()
+	// database.createTable(db)
 
 	// read .env variables
 	RPC_URL, WS_URL, WETH_ADDRESS, FACTORY_ADDRESS, TOKEN_ADDRESS, PK, BUY_AMOUNT, ROUTER_ADDRESS, GAS_MULTIPLIER := readEnvVariables()
