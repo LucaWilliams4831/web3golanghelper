@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/nikola43/web3golanghelper/web3helper"
+	"github.com/LucaWilliams4831/web3golanghelper/web3helper"
 )
 
 func main2() {

@@ -17,9 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/joho/godotenv"
 
-	pancakeFactory "github.com/nikola43/web3golanghelper/contracts/IPancakeFactory"
-	pancakePair "github.com/nikola43/web3golanghelper/contracts/IPancakePair"
-	"github.com/nikola43/web3golanghelper/web3helper"
+	pancakeFactory "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakeFactory"
+	pancakePair "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakePair"
+	"github.com/LucaWilliams4831/web3golanghelper/web3helper"
+	"github.com/LucaWilliams4831/web3golanghelper/database"
 )
 
 type Reserve struct {
@@ -27,8 +28,32 @@ type Reserve struct {
 	Reserve1           *big.Int
 	BlockTimestampLast uint32
 }
+type Bot struct {
+    ID            int            `json:"id"`
+    PrivKey       string         `json:"privkey"`
+    Title         string         `json:"title"`
+    NetworkID     string         `json:"network_id"`
+    Volume        float64        `json:"volume"`
+    Fees          float32        `json:"fees"`
+    RandomAction  int            `json:"random_action"`
+    TxNum         int            `json:"tx_num"`
+    MaxGas        float32        `json:"max_gas"`
+    TimeMin       int            `json:"time_min"`
+    TimeMax       int            `json:"time_max"`
+    CreateTime    string         `json:"create_time"`
+    DeleteDateTime sql.NullString `json:"delete_time"`
+}
+
 
 func main() {
+
+	db, err := database.createDBConnection()
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    defer db.Close()
+	database.createTable(db)
 
 	// read .env variables
 	RPC_URL, WS_URL, WETH_ADDRESS, FACTORY_ADDRESS, TOKEN_ADDRESS, PK, BUY_AMOUNT, ROUTER_ADDRESS, GAS_MULTIPLIER := readEnvVariables()
@@ -56,7 +81,11 @@ func main() {
 				if err != nil {
 					fmt.Println(err)
 				}
+				fmt.Println(web3GolangHelper.GetEthBalance(fromAddress))
 				web3GolangHelper.Buy(ROUTER_ADDRESS, WETH_ADDRESS, PK, fromAddress, TOKEN_ADDRESS, buyAmount, GAS_MULTIPLIER)
+				// time.Sleep(10 * time.Millisecond)
+				//  web3GolangHelper.Sell(ROUTER_ADDRESS, WETH_ADDRESS, PK, fromAddress, TOKEN_ADDRESS, buyAmount, GAS_MULTIPLIER)
+				// web3GolangHelper.Sell(ROUTER_ADDRESS, WETH_ADDRESS, PK, fromAddress, TOKEN_ADDRESS, big.NewInt(100), GAS_MULTIPLIER)
 				os.Exit(0)
 			}
 		}

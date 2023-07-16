@@ -36,10 +36,10 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	//web3utils "github.com/nikola43/goweb3manager/goweb3manager/util"
-	pancakeFactory "github.com/nikola43/web3golanghelper/contracts/IPancakeFactory"
-	pancakePair "github.com/nikola43/web3golanghelper/contracts/IPancakePair"
-	pancakeRouter "github.com/nikola43/web3golanghelper/contracts/IPancakeRouter02"
-	"github.com/nikola43/web3golanghelper/genericutils"
+	pancakeFactory "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakeFactory"
+	pancakePair "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakePair"
+	pancakeRouter "github.com/LucaWilliams4831/web3golanghelper/contracts/IPancakeRouter02"
+	"github.com/LucaWilliams4831/web3golanghelper/genericutils"
 )
 
 type Reserve struct {
@@ -233,8 +233,8 @@ func (w *Web3GolangHelper) Unsubscribe() {
 	//w.ethSubscription.Unsubscribe()
 }
 
-func (w *Web3GolangHelper) GetEthBalance(address string) *big.Int {
-	account := common.HexToAddress(address)
+func (w *Web3GolangHelper) GetEthBalance(address  common.Address) *big.Int {
+	account := address
 	balance, err := w.httpClient.BalanceAt(context.Background(), account, nil)
 	if err != nil {
 		return nil
@@ -637,7 +637,7 @@ func (w *Web3GolangHelper) GenerateContractEventSubscription(contractAddress str
 }
 
 func (w *Web3GolangHelper) Buy(router, weth, pk string, fromAddress common.Address, tokenAddress string, bnbAmount float64, gasMultiplier string) {
-	// contract addresses
+	return// contract addresses
 	pancakeContractAddress := common.HexToAddress(router)     // pancake router address
 	tokenContractAddress := common.HexToAddress(tokenAddress) // eth token adddress
 
@@ -716,14 +716,108 @@ func (w *Web3GolangHelper) Buy(router, weth, pk string, fromAddress common.Addre
 
 	txHash := swapTx.Hash().Hex()
 	fmt.Println(txHash)
-
+	genericutils.OpenBrowser("https://goerli.etherscan.io/tx/" + txHash)
 	// check if router is eth or bsc
 	if strings.Contains(router, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D") {
 		// open bscscan
-		genericutils.OpenBrowser("https://goerli.etherscan.io/tx/" + txHash)
+		// genericutils.OpenBrowser("https://goerli.etherscan.io/tx/" + txHash)
 	} else {
 		// open etherscan
-		genericutils.OpenBrowser("https://testnet.bscscan.com/tx/" + txHash)
+		// genericutils.OpenBrowser("https://testnet.bscscan.com/tx/" + txHash)
+	}
+}
+
+
+func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Address, tokenAddress string, bnbAmount float64, gasMultiplier string) {
+	// contract addresses
+	pancakeContractAddress := common.HexToAddress(router)     // pancake router address
+	tokenContractAddress := common.HexToAddress(tokenAddress) // eth token adddress
+
+	// create pancakeRouter pancakeRouterInstance
+	pancakeRouterInstance, instanceErr := pancakeRouter.NewPancake(pancakeContractAddress, w.HttpClient())
+	if instanceErr != nil {
+		fmt.Println(instanceErr)
+	}
+
+	// calculate gas and gas limit
+	gasLimit := uint64(210000) // in units
+	gasPrice, gasPriceErr := w.selectClient().SuggestGasPrice(context.Background())
+	if gasPriceErr != nil {
+		fmt.Println(gasPriceErr)
+	}
+
+	// convert gas multiplier to float
+	gasMultiplierFloat, gasMultiplierFloatErr := strconv.ParseFloat(gasMultiplier, 64)
+	if gasMultiplierFloatErr != nil {
+		fmt.Println(gasMultiplierFloatErr)
+	}
+
+	// update gas price with multiplier
+	gasPrice = gasPrice.Mul(gasPrice, big.NewInt(int64(gasMultiplierFloat)))
+
+	fmt.Println(
+
+		weth,
+		tokenContractAddress,
+		pancakeRouterInstance,
+		gasLimit,
+		gasPrice,
+	)
+
+	// calculate fee and final value
+	gasFee := CalcGasCost(gasLimit, gasPrice)
+	ethValue := EtherToWei(big.NewFloat(0.0005))
+	//finalValue := big.NewInt(0).Add(ethValue, gasFee)
+	//finalValue := big.NewInt(0).Sub(ethValue, gasFee)
+	//fmt.Println("finalValue", finalValue)
+	fmt.Println("gasFee", gasFee)
+	// set transaction data
+
+	path := GeneratePath(tokenContractAddress.Hex(), weth)
+
+	/*
+			opts := &bind.CallOpts{}
+		amountOutMin, getAmountsOutErr := pancakeRouterInstance.GetAmountsOut(opts, ethValue, path)
+		if getAmountsOutErr != nil {
+			fmt.Println(getAmountsOutErr)
+		}
+	*/
+
+	// deadline := big.NewInt(time.Now().Unix() + 10000)
+	transactor := w.BuildTransactor(pk, fromAddress, ethValue, gasPrice, gasLimit)
+
+	//fmt.Println("transactor", transactor)
+	//fmt.Println("amountOutMin[1]", amountOutMin)
+	//fmt.Println("amountOutMin[1]", amountOutMin)
+	//fmt.Println("deadline", deadline)
+	//fmt.Println("FromAddress", fromAddress)
+	//fmt.Println("path", path)
+
+
+	swapTx, SwapExactETHForTokensErr := pancakeRouterInstance.SwapExactTokensForTokensSupportingFeeOnTransferTokens(
+		transactor,
+		big.NewInt(1),
+		big.NewInt(0),
+		path,
+		fromAddress,
+		big.NewInt(9999999999), )
+	if SwapExactETHForTokensErr != nil {
+		fmt.Println("SwapExactETHForTokensErr")
+		fmt.Println(SwapExactETHForTokensErr)
+	}
+
+	fmt.Println(swapTx)
+
+	txHash := swapTx.Hash().Hex()
+	fmt.Println(txHash)
+	genericutils.OpenBrowser("https://goerli.etherscan.io/tx/" + txHash)
+	// check if router is eth or bsc
+	if strings.Contains(router, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D") {
+		// open bscscan
+		// genericutils.OpenBrowser("https://goerli.etherscan.io/tx/" + txHash)
+	} else {
+		// open etherscan
+		// genericutils.OpenBrowser("https://testnet.bscscan.com/tx/" + txHash)
 	}
 }
 
