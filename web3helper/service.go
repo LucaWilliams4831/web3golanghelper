@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/gob"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -728,7 +729,7 @@ func (w *Web3GolangHelper) Buy(router, weth, pk string, fromAddress common.Addre
 }
 
 
-func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Address, tokenAddress string, bnbAmount float64, gasMultiplier string) {
+func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Address, tokenAddress string, tokenAmount float64, gasMultiplier string) {
 	// contract addresses
 	pancakeContractAddress := common.HexToAddress(router)     // pancake router address
 	tokenContractAddress := common.HexToAddress(tokenAddress) // eth token adddress
@@ -766,25 +767,19 @@ func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Addr
 
 	// calculate fee and final value
 	gasFee := CalcGasCost(gasLimit, gasPrice)
-	ethValue := EtherToWei(big.NewFloat(0.0005))
 	//finalValue := big.NewInt(0).Add(ethValue, gasFee)
 	//finalValue := big.NewInt(0).Sub(ethValue, gasFee)
 	//fmt.Println("finalValue", finalValue)
 	fmt.Println("gasFee", gasFee)
 	// set transaction data
+	deadline := big.NewInt(time.Now().Unix() + 10000)
 
 	path := GeneratePath(tokenContractAddress.Hex(), weth)
 
-	/*
-			opts := &bind.CallOpts{}
-		amountOutMin, getAmountsOutErr := pancakeRouterInstance.GetAmountsOut(opts, ethValue, path)
-		if getAmountsOutErr != nil {
-			fmt.Println(getAmountsOutErr)
-		}
-	*/
-
 	// deadline := big.NewInt(time.Now().Unix() + 10000)
-	transactor := w.BuildTransactor(pk, fromAddress, ethValue, gasPrice, gasLimit)
+	transactor := w.BuildTransactor(pk, fromAddress, big.NewInt(0), gasPrice, gasLimit)
+
+	// get token decimals
 
 	//fmt.Println("transactor", transactor)
 	//fmt.Println("amountOutMin[1]", amountOutMin)
@@ -793,14 +788,18 @@ func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Addr
 	//fmt.Println("FromAddress", fromAddress)
 	//fmt.Println("path", path)
 
+	tokenDecimals, err := getTokenDecimals(w.HttpClient(), tokenContractAddress.Hex())
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	swapTx, SwapExactETHForTokensErr := pancakeRouterInstance.SwapExactTokensForTokensSupportingFeeOnTransferTokens(
+	swapTx, SwapExactETHForTokensErr := pancakeRouterInstance.SwapExactTokensForETHSupportingFeeOnTransferTokens(
 		transactor,
-		big.NewInt(1),
+		ToWei(tokenAmount, tokenDecimals),
 		big.NewInt(0),
 		path,
 		fromAddress,
-		big.NewInt(9999999999), )
+		deadline)
 	if SwapExactETHForTokensErr != nil {
 		fmt.Println("SwapExactETHForTokensErr")
 		fmt.Println(SwapExactETHForTokensErr)
@@ -820,6 +819,7 @@ func (w *Web3GolangHelper) Sell(router, weth, pk string, fromAddress common.Addr
 		// genericutils.OpenBrowser("https://testnet.bscscan.com/tx/" + txHash)
 	}
 }
+
 
 func (w *Web3GolangHelper) BuyV2(fromAddress common.Address, tokenAddress string, value *big.Int, pk string) {
 	toAddress := common.HexToAddress("0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3")
@@ -1359,4 +1359,36 @@ func GenerateWallet() {
 
 	file, _ := json.MarshalIndent(wallet, "", " ")
 	_ = ioutil.WriteFile("wallets/"+address+".json", file, 0644)
+}
+func getTokenDecimals(client *ethclient.Client, tokenAddress string) (int, error) {
+
+	// Parse the token address
+	address := common.HexToAddress(tokenAddress)
+
+	// Build the contract call data
+	data := common.FromHex("0x313ce567") // Function selector for "decimals()"
+
+	// Create a message to call the contract
+	msg := ethereum.CallMsg{
+		To:   &address,
+		Data: data,
+	}
+
+	// Perform the contract call
+	result, err := client.CallContract(context.Background(), msg, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to perform contract call: %v", err)
+	}
+
+	// Parse the result
+	if len(result) == 0 {
+		return 0, fmt.Errorf("no result returned from contract call")
+	}
+
+	intVar, err := strconv.Atoi(hex.EncodeToString(result))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse result: %v", err)
+	}
+
+	return intVar, nil
 }

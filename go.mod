@@ -5,12 +5,15 @@ go 1.18
 require (
 	github.com/ethereum/go-ethereum v1.10.19
 	github.com/fatih/color v1.13.0
+	github.com/gorilla/handlers v1.5.1
+	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.10.9
 	github.com/shopspring/decimal v1.3.1
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 )
 
 require (
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	rsc.io/qr v0.2.0 // indirect
